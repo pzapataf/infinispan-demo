@@ -16,7 +16,7 @@ public class RESTGenerateRandomMap {
 
     private int getHeight(int x, int y, int maxx, int maxy, int maxheight, DemoMapEntry existing) {
 
-        if( existing != null ) {
+        if (existing != null) {
             return existing.getZ() + 5;
         } else {
             double h = maxheight * Math.sin((double) x / maxx) * Math.cos((double) y / maxy) * maxheight + maxheight;

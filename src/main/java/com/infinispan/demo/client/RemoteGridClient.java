@@ -1,6 +1,5 @@
 package com.infinispan.demo.client;
 
-import com.infinispan.demo.GlobalConfig;
 import com.infinispan.demo.endpoints.WebSocketServer;
 import com.infinispan.demo.model.DemoMapEntry;
 import org.infinispan.client.hotrod.RemoteCache;
@@ -11,7 +10,6 @@ import org.infinispan.client.hotrod.annotation.ClientCacheEntryRemoved;
 import org.infinispan.client.hotrod.annotation.ClientListener;
 import org.infinispan.client.hotrod.configuration.ConfigurationBuilder;
 import org.infinispan.client.hotrod.event.*;
-import org.jboss.msc.value.MapEntry;
 
 import javax.naming.ConfigurationException;
 import java.io.IOException;

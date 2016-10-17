@@ -16,12 +16,20 @@ public class WebSocketServer {
 
     private static Map<String, Session> openSessions = new HashMap<>();
 
-    @OnOpen
-    public void onOpen(Session session) {
-
-        openSessions.put(session.getId(), session);
-
-        System.out.println("New connection with client:" + session.getId());
+    public static void notifyUpdate(Integer key, DemoMapEntry demoMapEntry) {
+        openSessions.values().forEach(
+                (s) -> {
+                    if (s.isOpen()) {
+                        try {
+                            s.getBasicRemote().sendObject(
+                                    new CRUDOperation(CRUDOperation.TYPE.UPDATE, key, demoMapEntry).toJSON()
+                            );
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+                    }
+                }
+        );
     }
 
    /* @OnMessage
@@ -44,34 +52,6 @@ public class WebSocketServer {
         return "Server received [" + message + "]";
     }*/
 
-    @OnClose
-    public void onClose(Session session) {
-        openSessions.remove(session.getId());
-        System.out.println("Session closed : " + session.getId() );
-    }
-
-    @OnError
-    public void onError(Throwable exception, Session session) {
-        System.out.println("Error for session " + session.getId());
-        exception.printStackTrace();
-    }
-
-    public static void notifyUpdate(Integer key, DemoMapEntry demoMapEntry) {
-        openSessions.values().forEach(
-                (s) -> {
-                    if (s.isOpen()) {
-                        try {
-                            s.getBasicRemote().sendObject(
-                                    new CRUDOperation(CRUDOperation.TYPE.UPDATE, key, demoMapEntry).toJSON()
-                            );
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    }
-                }
-        );
-    }
-
     public static void notifyRemoval(Integer key) {
         openSessions.values().forEach(
                 (s) -> {
@@ -86,5 +66,25 @@ public class WebSocketServer {
                     }
                 }
         );
+    }
+
+    @OnOpen
+    public void onOpen(Session session) {
+
+        openSessions.put(session.getId(), session);
+
+        System.out.println("New connection with client:" + session.getId());
+    }
+
+    @OnClose
+    public void onClose(Session session) {
+        openSessions.remove(session.getId());
+        System.out.println("Session closed : " + session.getId());
+    }
+
+    @OnError
+    public void onError(Throwable exception, Session session) {
+        System.out.println("Error for session " + session.getId());
+        exception.printStackTrace();
     }
 }

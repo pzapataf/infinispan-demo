@@ -9,43 +9,7 @@
         }
     </style>
 
-    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.16.1/vis.min.js"></script>
-
     <script type="text/javascript">
-
-        var chartData = new vis.DataSet();
-
-        // TODO: Build this string dynamically
-        var webSocketClient = new WebSocket("ws://localhost:8081/grid-events");
-
-        webSocketClient.onmessage = function (evt) {
-            //console.debug(evt.data);
-
-            // http://visjs.org/docs/data/dataset.html
-            var op = JSON.parse(evt.data);
-
-            if(op.type=='UPDATE') {
-                var entry = transformToVis(op.entry);
-                //console.debug(entry);
-                var item = chartData.get(entry.id);
-                if( item == null ) {
-                    chartData.add(entry);
-                } else {
-                    chartData.update(entry);
-                }
-            } else
-            if( op.type == 'DELETE') {
-                var key = op.key;
-                chartData.remove(key);
-                //console.debug("DELETING " + key);
-            }
-        }
-
-        function sendMessage(msg) {
-            webSocketClient.send(msg);
-        }
-
-
         // Load JSON from a URL with a callback
         function loadJSON(url, callback) {
             var xobj = new XMLHttpRequest();
@@ -64,6 +28,76 @@
             // TODO: Do something clever
             alert("ERROR: " + error);
         }
+
+        function hide(id) {
+            var element = document.getElementById(id);
+            if( element != null ) {
+                element.style.display='none';
+            }
+        }
+
+        function show(id) {
+            var element = document.getElementById(id);
+            if( element != null ) {
+                element.style.display='block';
+            }
+        }
+    </script>
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.16.1/vis.min.js"></script>
+
+    <script type="text/javascript">
+
+        var chartData = new vis.DataSet();
+
+        // TODO: Build this string dynamically
+        var webSocketClient = new WebSocket("ws://localhost:8081/grid-events");
+
+        webSocketClient.onmessage = function (evt) {
+            //console.debug(evt.data);
+
+            // http://visjs.org/docs/data/dataset.html
+            var op = JSON.parse(evt.data);
+
+            if (op.type == 'UPDATE') {
+                var entry = transformToVis(op.entry);
+                //console.debug(entry);
+                var item = chartData.get(entry.id);
+                if (item == null) {
+                    chartData.add(entry);
+                } else {
+                    chartData.update(entry);
+                }
+            } else if (op.type == 'DELETE') {
+                var key = op.key;
+                chartData.remove(key);
+                //console.debug("DELETING " + key);
+            }
+        };
+
+        webSocketClient.onclose = function () {
+            hide("STATUS_STABLISHED");
+            hide("STATUS_ERROR");
+            show("STATUS_DISCONNECT");
+        };
+
+        webSocketClient.onopen = function () {
+            show("STATUS_STABLISHED");
+            hide("STATUS_ERROR");
+            hide("STATUS_DISCONNECT");
+        };
+
+        webSocketClient.onerror = function () {
+            hide("STATUS_STABLISHED");
+            show("STATUS_ERROR");
+            hide("STATUS_DISCONNECT");
+        };
+
+
+
+        function sendMessage(msg) {
+            webSocketClient.send(msg);
+        }
+
 
         // Called when the Visualization API is loaded.
         function drawVisualization(data) {
@@ -109,7 +143,7 @@
 
                         chartData = new vis.DataSet();
                         for (var i = 0; i < response.length; i++) {
-                            chartData.add(transformToVis( response[i] ));
+                            chartData.add(transformToVis(response[i]));
                         }
 
                         drawVisualization(chartData);
@@ -127,11 +161,11 @@
         }
 
         // Generate random map on the server
-        function generateMap(maxx,maxy,maxz) {
+        function generateMap(maxx, maxy, maxz) {
             var url = '/rest/generate-map?' +
-                            'maxx=' + maxx + '&' +
-                            'maxy=' + maxy + '&' +
-                            'maxz=' + maxz;
+                    'maxx=' + maxx + '&' +
+                    'maxy=' + maxy + '&' +
+                    'maxz=' + maxz;
 
             loadJSON(url,
                     function (response) {
@@ -144,6 +178,10 @@
 
 <body>
 <h1>Site X status: </h1>
+
+<div id="STATUS_DISCONNECT" style="display: none"><h2 style="color:red">CONNECTION DISCONNECTED</h2></div>
+<div id="STATUS_STABLISHED" style="display: none"><h2 style="color:green">CONNECTION STABLISHED</h2></div>
+<div id="STATUS_ERROR"      style="display: none"><h2 style="color:red">CONNECTION ERROR</h2></div>
 
 <div id="mygraph"></div>
 

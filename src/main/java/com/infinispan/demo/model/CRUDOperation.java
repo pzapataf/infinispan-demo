@@ -5,17 +5,10 @@ package com.infinispan.demo.model;
  */
 public class CRUDOperation {
 
-    public enum TYPE {
-        CREATE,
-        DELETE,
-        UPDATE
-    };
-
     private TYPE type;
 
     private Integer key;
     private DemoMapEntry mapEntry;
-
     public CRUDOperation(TYPE type, Integer key) {
         this.type = type;
         this.key = key;
@@ -33,14 +26,20 @@ public class CRUDOperation {
 
         buf.append("{ \"type\": \"" + type.name() + "\"");
 
-        if( key != null ) {
+        if (key != null) {
             buf.append(", \"key\": \"" + key + "\"");
         }
-        if( mapEntry != null ) {
+        if (mapEntry != null) {
             buf.append(", \"entry\": " + mapEntry.toJSON());
         }
         buf.append("}\n");
 
         return buf.toString();
+    }
+
+    public enum TYPE {
+        CREATE,
+        DELETE,
+        UPDATE
     }
 }

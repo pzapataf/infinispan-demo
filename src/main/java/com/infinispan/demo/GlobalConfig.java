@@ -1,7 +1,6 @@
 package com.infinispan.demo;
 
 import com.infinispan.demo.client.RemoteGridClient;
-import com.infinispan.demo.endpoints.WebSocketServer;
 
 import javax.naming.ConfigurationException;
 import java.io.IOException;

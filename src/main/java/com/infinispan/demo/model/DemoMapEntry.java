@@ -53,9 +53,9 @@ public class DemoMapEntry implements Serializable {
 
     public String toJSON() {
         return "{ " +
-                "\"id\":" +id + ", " +
-                "\"x\":" +x + ", " +
-                "\"y\":" +y + ", " +
-                "\"z\":" +z + "}";
+                "\"id\":" + id + ", " +
+                "\"x\":" + x + ", " +
+                "\"y\":" + y + ", " +
+                "\"z\":" + z + "}";
     }
 }
