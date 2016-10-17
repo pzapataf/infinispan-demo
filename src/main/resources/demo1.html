@@ -1,0 +1,117 @@
+<!doctype html>
+<html>
+<head>
+    <title>Graph 3D demo</title>
+
+    <style>
+        body {font: 10pt arial;}
+    </style>
+
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.16.1/vis.min.js"></script>
+
+    <script type="text/javascript">
+
+    var chartData = new vis.DataSet();
+
+    var webSocketClient = new WebSocket("ws://localhost:8081/grid-events");
+
+   webSocketClient.onmessage = function(evt) {
+             alert("RECEIVED:" + evt.data);
+             console.debug(evt);
+      }
+
+  function sendMessage(msg) {
+      webSocketClient.send(msg);
+   }
+
+
+    // Load JSON from a URL with a callback
+    function loadJSON(url, callback) {
+        var xobj = new XMLHttpRequest();
+        xobj.overrideMimeType("application/json");
+        xobj.open('GET', url, true);
+        xobj.onreadystatechange = function () {
+          if (xobj.readyState == 4 && xobj.status == "200") {
+            // Required use of an anonymous callback as .open will NOT return a value but simply returns undefined in asynchronous mode
+            callback(xobj.responseText);
+          }
+        };
+        xobj.send(null);
+    }
+
+    // Called when the Visualization API is loaded.
+    function drawVisualization( data ) {
+      // specify options
+      var options = {
+        width:  '600px',
+        height: '600px',
+        style: 'surface',
+        showPerspective: true,
+        showGrid: true,
+        showShadow: false,
+        keepAspectRatio: true,
+        verticalRatio: 0.5
+      };
+
+      // Instantiate our graph object.
+      var container = document.getElementById('mygraph');
+      graph = new vis.Graph3d(container, data, options);
+    }
+
+    function refreshChart() {
+        loadJSON('/rest/load',
+
+           function(response) {
+            if( response == null || response.length == 0 || response[0] != '[' ) {
+                // Incorrect response
+                // TODO: Do something clever with that
+                return;
+            }
+
+            // Change it into JSON
+            response = JSON.parse(response);
+
+            chartData = new vis.DataSet();
+            for( var i = 0; i < response.length; i++ ) {
+                    var d = response[i];
+                    chartData.add({
+                            id:i,
+                            x:d.x,
+                            y:d.y,
+                            z:d.z,
+                            style:d.z});
+
+            }
+
+            drawVisualization(chartData);
+          }
+
+      );
+    }
+
+    // Invoke to update an entry of the chart
+    function updateElement(id, newHeight) {
+        chartData.update({id:id,z:newHeight,style:newHeight});
+    }
+
+
+    </script>
+
+</head>
+
+<body>
+<h1>Site X status: </h1>
+
+<div id="mygraph"></div>
+
+<hr>
+<button onclick="refreshChart()">REFRESH</button>
+<button onclick="updateElement(50, 500)">UPDATE ELEMENT</button>
+<button onclick="sendMessage('hi there!')">SEND WEBSOCKET</button>
+
+<script type="text/javascript">
+      // Update chart
+      refreshChart();
+</script>
+</body>
+</html>
