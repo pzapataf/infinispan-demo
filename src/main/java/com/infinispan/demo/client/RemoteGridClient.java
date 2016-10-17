@@ -1,5 +1,7 @@
 package com.infinispan.demo.client;
 
+import com.infinispan.demo.GlobalConfig;
+import com.infinispan.demo.endpoints.WebSocketServer;
 import com.infinispan.demo.model.DemoMapEntry;
 import org.infinispan.client.hotrod.RemoteCache;
 import org.infinispan.client.hotrod.RemoteCacheManager;
@@ -8,10 +10,8 @@ import org.infinispan.client.hotrod.annotation.ClientCacheEntryModified;
 import org.infinispan.client.hotrod.annotation.ClientCacheEntryRemoved;
 import org.infinispan.client.hotrod.annotation.ClientListener;
 import org.infinispan.client.hotrod.configuration.ConfigurationBuilder;
-import org.infinispan.client.hotrod.event.ClientCacheEntryCreatedEvent;
-import org.infinispan.client.hotrod.event.ClientCacheEntryExpiredEvent;
-import org.infinispan.client.hotrod.event.ClientCacheEntryRemovedEvent;
-import org.infinispan.client.hotrod.event.ClientEvent;
+import org.infinispan.client.hotrod.event.*;
+import org.jboss.msc.value.MapEntry;
 
 import javax.naming.ConfigurationException;
 import java.io.IOException;
@@ -35,8 +35,8 @@ public class RemoteGridClient {
 
         initRemoteCacheManager();
 
-        if(getCache() == null) {
-            System.out.println("Please, create a cache named '" + cacheName+ "' first.");
+        if (getCache() == null) {
+            System.out.println("Please, create a cache named '" + cacheName + "' first.");
             throw new ConfigurationException("Cache " + cacheName + " not found!");
         }
     }
@@ -59,7 +59,7 @@ public class RemoteGridClient {
 
 
     public void close() {
-        if( remoteCacheManager != null ) {
+        if (remoteCacheManager != null) {
             getRemoteCacheManager().stop();
             remoteCacheManager = null;
         }
@@ -70,33 +70,42 @@ public class RemoteGridClient {
     @ClientCacheEntryRemoved
     public void handleRemoteEvent(ClientEvent event) {
 
-        String key = null;
+        Integer key = null;
 
         switch (event.getType()) {
             case CLIENT_CACHE_ENTRY_CREATED:
-                key = (String) ((ClientCacheEntryCreatedEvent) event).getKey();
+                key = (Integer) ((ClientCacheEntryCreatedEvent) event).getKey();
+                notifyChange(key, getCache().get(key));
                 break;
             case CLIENT_CACHE_ENTRY_EXPIRED:
-                key = (String) ((ClientCacheEntryExpiredEvent) event).getKey();
+                key = (Integer) ((ClientCacheEntryExpiredEvent) event).getKey();
+                notifyRemoval(key);
                 break;
             case CLIENT_CACHE_ENTRY_MODIFIED:
-                key = (String) ((ClientCacheEntryCreatedEvent) event).getKey();
+                key = (Integer) ((ClientCacheEntryModifiedEvent) event).getKey();
+                notifyChange(key, getCache().get(key));
                 break;
             case CLIENT_CACHE_ENTRY_REMOVED:
-                key = (String) ((ClientCacheEntryRemovedEvent) event).getKey();
+                key = (Integer) ((ClientCacheEntryRemovedEvent) event).getKey();
+                notifyRemoval(key);
                 break;
         }
+    }
 
-        if( key != null) {
-            System.out.println("CACHE ENTRY MODIFIED:" + event.getType() + " " + key);
-        }
+
+    protected void notifyChange(Integer key, DemoMapEntry v) {
+        WebSocketServer.notifyUpdate(key, v);
+    }
+
+    protected void notifyRemoval(Integer key) {
+        WebSocketServer.notifyRemoval(key);
     }
 
     public RemoteCacheManager getRemoteCacheManager() {
         return remoteCacheManager;
     }
 
-    public RemoteCache<String, DemoMapEntry> getCache() {
+    public RemoteCache<Integer, DemoMapEntry> getCache() {
         return getRemoteCacheManager().getCache(cacheName);
     }
 }

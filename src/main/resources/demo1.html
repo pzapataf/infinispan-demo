@@ -4,99 +4,142 @@
     <title>Graph 3D demo</title>
 
     <style>
-        body {font: 10pt arial;}
+        body {
+            font: 10pt arial;
+        }
     </style>
 
     <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.16.1/vis.min.js"></script>
 
     <script type="text/javascript">
 
-    var chartData = new vis.DataSet();
+        var chartData = new vis.DataSet();
 
-    var webSocketClient = new WebSocket("ws://localhost:8081/grid-events");
+        // TODO: Build this string dynamically
+        var webSocketClient = new WebSocket("ws://localhost:8081/grid-events");
 
-   webSocketClient.onmessage = function(evt) {
-             alert("RECEIVED:" + evt.data);
-             console.debug(evt);
-      }
+        webSocketClient.onmessage = function (evt) {
+            //console.debug(evt.data);
 
-  function sendMessage(msg) {
-      webSocketClient.send(msg);
-   }
+            // http://visjs.org/docs/data/dataset.html
+            var op = JSON.parse(evt.data);
 
-
-    // Load JSON from a URL with a callback
-    function loadJSON(url, callback) {
-        var xobj = new XMLHttpRequest();
-        xobj.overrideMimeType("application/json");
-        xobj.open('GET', url, true);
-        xobj.onreadystatechange = function () {
-          if (xobj.readyState == 4 && xobj.status == "200") {
-            // Required use of an anonymous callback as .open will NOT return a value but simply returns undefined in asynchronous mode
-            callback(xobj.responseText);
-          }
-        };
-        xobj.send(null);
-    }
-
-    // Called when the Visualization API is loaded.
-    function drawVisualization( data ) {
-      // specify options
-      var options = {
-        width:  '600px',
-        height: '600px',
-        style: 'surface',
-        showPerspective: true,
-        showGrid: true,
-        showShadow: false,
-        keepAspectRatio: true,
-        verticalRatio: 0.5
-      };
-
-      // Instantiate our graph object.
-      var container = document.getElementById('mygraph');
-      graph = new vis.Graph3d(container, data, options);
-    }
-
-    function refreshChart() {
-        loadJSON('/rest/load',
-
-           function(response) {
-            if( response == null || response.length == 0 || response[0] != '[' ) {
-                // Incorrect response
-                // TODO: Do something clever with that
-                return;
+            if(op.type=='UPDATE') {
+                var entry = transformToVis(op.entry);
+                //console.debug(entry);
+                var item = chartData.get(entry.id);
+                if( item == null ) {
+                    chartData.add(entry);
+                } else {
+                    chartData.update(entry);
+                }
+            } else
+            if( op.type == 'DELETE') {
+                var key = op.key;
+                chartData.remove(key);
+                //console.debug("DELETING " + key);
             }
+        }
 
-            // Change it into JSON
-            response = JSON.parse(response);
-
-            chartData = new vis.DataSet();
-            for( var i = 0; i < response.length; i++ ) {
-                    var d = response[i];
-                    chartData.add({
-                            id:i,
-                            x:d.x,
-                            y:d.y,
-                            z:d.z,
-                            style:d.z});
-
-            }
-
-            drawVisualization(chartData);
-          }
-
-      );
-    }
-
-    // Invoke to update an entry of the chart
-    function updateElement(id, newHeight) {
-        chartData.update({id:id,z:newHeight,style:newHeight});
-    }
+        function sendMessage(msg) {
+            webSocketClient.send(msg);
+        }
 
 
+        // Load JSON from a URL with a callback
+        function loadJSON(url, callback) {
+            var xobj = new XMLHttpRequest();
+            xobj.overrideMimeType("application/json");
+            xobj.open('GET', url, true);
+            xobj.onreadystatechange = function () {
+                if (xobj.readyState == 4 && xobj.status == "200") {
+                    // Required use of an anonymous callback as .open will NOT return a value but simply returns undefined in asynchronous mode
+                    callback(xobj.responseText);
+                }
+            };
+            xobj.send(null);
+        }
+
+        function handleError(error) {
+            // TODO: Do something clever
+            alert("ERROR: " + error);
+        }
+
+        // Called when the Visualization API is loaded.
+        function drawVisualization(data) {
+            // specify options
+            var options = {
+                width: '600px',
+                height: '600px',
+                style: 'bar-color',
+                showPerspective: true,
+                showGrid: true,
+                showShadow: false,
+                keepAspectRatio: true,
+                verticalRatio: 0.5
+            };
+
+            // Instantiate our graph object.
+            var container = document.getElementById('mygraph');
+            graph = new vis.Graph3d(container, data, options);
+        }
+
+        function transformToVis(mapEntry) {
+            return {
+                id: mapEntry.id,
+                x: mapEntry.x,
+                y: mapEntry.y,
+                z: mapEntry.z,
+                style: mapEntry.z
+            };
+        }
+
+        // Loads the map fully and displays it
+        function refreshChart() {
+            loadJSON('/rest/load-map',
+
+                    function (response) {
+                        if (response == null || response.length == 0 || response[0] != '[') {
+                            handleError("Invalid response");
+                            return;
+                        }
+
+                        // Change it into JSON
+                        response = JSON.parse(response);
+
+                        chartData = new vis.DataSet();
+                        for (var i = 0; i < response.length; i++) {
+                            chartData.add(transformToVis( response[i] ));
+                        }
+
+                        drawVisualization(chartData);
+                    }
+            );
+        }
+
+        // Clean map
+        function cleanMap() {
+            loadJSON('/rest/clean-map',
+                    function (response) {
+                        //refreshChart();
+                    }
+            );
+        }
+
+        // Generate random map on the server
+        function generateMap(maxx,maxy,maxz) {
+            var url = '/rest/generate-map?' +
+                            'maxx=' + maxx + '&' +
+                            'maxy=' + maxy + '&' +
+                            'maxz=' + maxz;
+
+            loadJSON(url,
+                    function (response) {
+                        //refreshChart();
+                    }
+            );
+        }
     </script>
-
 </head>
 
 <body>
@@ -106,12 +149,12 @@
 
 <hr>
 <button onclick="refreshChart()">REFRESH</button>
-<button onclick="updateElement(50, 500)">UPDATE ELEMENT</button>
-<button onclick="sendMessage('hi there!')">SEND WEBSOCKET</button>
+<button onclick="cleanMap()">CLEAN MAP</button>
+<button onclick="generateMap(20,20,20)">LAUNCH UPDATE MAP THREAD</button>
 
 <script type="text/javascript">
-      // Update chart
-      refreshChart();
+    // Update chart
+    refreshChart();
 </script>
 </body>
 </html>

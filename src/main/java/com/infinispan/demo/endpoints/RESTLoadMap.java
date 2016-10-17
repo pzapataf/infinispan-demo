@@ -10,21 +10,21 @@ import javax.ws.rs.Produces;
 import java.util.ArrayList;
 import java.util.List;
 
-@Path("/rest/load")
-public class RESTLoadGridState {
+@Path("/rest/load-map")
+public class RESTLoadMap {
 
     @GET
     @Produces("application/json")
     public List<DemoMapEntry> get() throws Exception {
 
-        RemoteCache<String, DemoMapEntry> cache = GlobalConfig.getClient().getCache();
+        RemoteCache<Integer, DemoMapEntry> cache = GlobalConfig.getClient().getCache();
 
         // Start with a trivial implementation
 
         List<DemoMapEntry> entries = new ArrayList<>();
 
         cache.retrieveEntries(null, 1000).forEachRemaining(
-                e->entries.add((DemoMapEntry) e.getValue())
+                e -> entries.add((DemoMapEntry) e.getValue())
         );
 
         return entries;

@@ -6,18 +6,16 @@ import java.io.Serializable;
  * Grid map entry.
  */
 public class DemoMapEntry implements Serializable {
+    private int id;
     private int x;
     private int y;
     private int z;
 
-    public DemoMapEntry(int x, int y, int h) {
+    public DemoMapEntry(int id, int x, int y, int h) {
+        this.id = id;
         this.x = x;
         this.y = y;
         this.z = h;
-    }
-
-    public static String keyOf(int x, int y) {
-        return x + "_" + y;
     }
 
     public int getX() {
@@ -44,12 +42,20 @@ public class DemoMapEntry implements Serializable {
         this.z = z;
     }
 
+    public int getId() {
+        return id;
+    }
+
     @Override
     public String toString() {
-        return "DemoMapEntry{" +
-                "x=" + x +
-                ", y=" + y +
-                ", z=" + z +
-                '}';
+        return toJSON();
+    }
+
+    public String toJSON() {
+        return "{ " +
+                "\"id\":" +id + ", " +
+                "\"x\":" +x + ", " +
+                "\"y\":" +y + ", " +
+                "\"z\":" +z + "}";
     }
 }
