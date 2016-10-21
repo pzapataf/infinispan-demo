@@ -1,15 +1,25 @@
 <!doctype html>
 <html>
 <head>
-    <title>Graph 3D demo</title>
+    <title>INFINISPAN - Hot Rod and Remote Events Demo</title>
 
     <style>
         body {
             font: 10pt arial;
+            color: white;
+            background-color: black;
         }
     </style>
 
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.16.1/vis.min.js"></script>
+    <script type="text/javascript" src="http://smoothiecharts.org/smoothie.js"></script>
+
     <script type="text/javascript">
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        // Some generic useful calls
+        //
+
         // Load JSON from a URL with a callback
         function loadJSON(url, callback) {
             var xobj = new XMLHttpRequest();
@@ -31,47 +41,158 @@
 
         function hide(id) {
             var element = document.getElementById(id);
-            if( element != null ) {
-                element.style.display='none';
+            if (element != null) {
+                element.style.display = 'none';
             }
         }
 
         function show(id) {
             var element = document.getElementById(id);
-            if( element != null ) {
-                element.style.display='block';
+            if (element != null) {
+                element.style.display = 'block';
             }
         }
+
+        function replace(id, content) {
+            var element = document.getElementById(id);
+            if (element != null) {
+                element.innerHTML = content;
+            }
+        }
+
     </script>
-    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.16.1/vis.min.js"></script>
 
     <script type="text/javascript">
 
-        var chartData = new vis.DataSet();
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        // Build real time data chart to display incoming events
+        // See http://smoothiecharts.org
+        //
+        var realTimeDataChart = new SmoothieChart({
+            grid: {
+                strokeStyle: 'rgb(125, 0, 0)', fillStyle: 'rgb(60, 0, 0)',
+                lineWidth: 1, millisPerLine: 250, verticalSections: 6,
+            },
+            labels: {fillStyle: 'rgb(60, 0, 0)'}
+        });
+        // Real time data used for display
+        var realTimeData = new TimeSeries();
+
+        realTimeDataChart.addTimeSeries(realTimeData);
+
+    </script>
+
+
+    <script type="text/javascript">
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        // Very simple real time display of events per second
+        //
+
+        var realTimeWindowSize = 1000;
+        var lastEventsTimestamps = [];
+
+
+        function counterAddEvent(timestamp) {
+            lastEventsTimestamps.push(timestamp);
+        }
+
+        function dropOlderEvents() {
+            var firstIndexToRemove = -1;
+            var windowStartTimestamp = new Date().getTime() - realTimeWindowSize;
+
+            for (i = 0; i < lastEventsTimestamps.length; i++) {
+                if (lastEventsTimestamps[i] <= windowStartTimestamp) {
+                    firstIndexToRemove = i;
+                }
+            }
+
+            if (firstIndexToRemove != -1) {
+                if (firstIndexToRemove >= lastEventsTimestamps.length) {
+                    lastEventsTimestamps = [];
+                } else {
+                    lastEventsTimestamps = lastEventsTimestamps.slice(firstIndexToRemove);
+                }
+            }
+            return lastEventsTimestamps;
+        }
+
+        function countEventsInWindow() {
+            return dropOlderEvents().length;
+        }
+
+    </script>
+
+    <script type="text/javascript">
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        // 3D visualizer for grid data
+        // See http://visjs.org
+        //
+        var mainChartData = new vis.DataSet();
+
+        // Called when the Visualization API is loaded.
+        function drawVisualization(data) {
+            // specify options
+            var options = {
+                width: '600px',
+                height: '600px',
+                style: 'bar-color',
+                showPerspective: true,
+                showGrid: true,
+                showShadow: false,
+                keepAspectRatio: true,
+                verticalRatio: 0.5
+            };
+
+            // Instantiate our graph object.
+            var container = document.getElementById('mainChart');
+            graph = new vis.Graph3d(container, data, options);
+        }
+
+        function transformToVis(mapEntry) {
+            return {
+                id: mapEntry.id,
+                x: mapEntry.x,
+                y: mapEntry.y,
+                z: mapEntry.z,
+                style: mapEntry.z
+            };
+        }
+    </script>
+
+    <script type="text/javascript">
+
+        ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+        // Wire everything together
+        //
 
         // TODO: Build this string dynamically
         var webSocketClient = new WebSocket("ws://localhost:8081/grid-events");
 
         webSocketClient.onmessage = function (evt) {
-            //console.debug(evt.data);
-
-            // http://visjs.org/docs/data/dataset.html
             var op = JSON.parse(evt.data);
+
+            var t = new Date().getTime();
 
             if (op.type == 'UPDATE') {
                 var entry = transformToVis(op.entry);
-                //console.debug(entry);
-                var item = chartData.get(entry.id);
+                var item = mainChartData.get(entry.id);
                 if (item == null) {
-                    chartData.add(entry);
+                    mainChartData.add(entry);
                 } else {
-                    chartData.update(entry);
+                    mainChartData.update(entry);
                 }
+                realTimeData.append(t, entry.z + 5);
             } else if (op.type == 'DELETE') {
                 var key = op.key;
-                chartData.remove(key);
-                //console.debug("DELETING " + key);
+                mainChartData.remove(key);
+                realTimeData.append(t, -5);
             }
+            counterAddEvent(t);
+
+            // Update the counter
+            replace('realTimeCounter', "<span style=\"font-size:150%\">" + countEventsInWindow() + "</span>");
         };
 
         webSocketClient.onclose = function () {
@@ -92,40 +213,8 @@
             hide("STATUS_DISCONNECT");
         };
 
-
-
         function sendMessage(msg) {
             webSocketClient.send(msg);
-        }
-
-
-        // Called when the Visualization API is loaded.
-        function drawVisualization(data) {
-            // specify options
-            var options = {
-                width: '600px',
-                height: '600px',
-                style: 'bar-color',
-                showPerspective: true,
-                showGrid: true,
-                showShadow: false,
-                keepAspectRatio: true,
-                verticalRatio: 0.5
-            };
-
-            // Instantiate our graph object.
-            var container = document.getElementById('mygraph');
-            graph = new vis.Graph3d(container, data, options);
-        }
-
-        function transformToVis(mapEntry) {
-            return {
-                id: mapEntry.id,
-                x: mapEntry.x,
-                y: mapEntry.y,
-                z: mapEntry.z,
-                style: mapEntry.z
-            };
         }
 
         // Loads the map fully and displays it
@@ -141,12 +230,12 @@
                         // Change it into JSON
                         response = JSON.parse(response);
 
-                        chartData = new vis.DataSet();
+                        mainChartData = new vis.DataSet();
                         for (var i = 0; i < response.length; i++) {
-                            chartData.add(transformToVis(response[i]));
+                            mainChartData.add(transformToVis(response[i]));
                         }
 
-                        drawVisualization(chartData);
+                        drawVisualization(mainChartData);
                     }
             );
         }
@@ -177,14 +266,26 @@
 </head>
 
 <body>
-<h1>Site X status: </h1>
 
-<div id="STATUS_DISCONNECT" style="display: none"><h2 style="color:red">CONNECTION DISCONNECTED</h2></div>
-<div id="STATUS_STABLISHED" style="display: none"><h2 style="color:green">CONNECTION STABLISHED</h2></div>
-<div id="STATUS_ERROR"      style="display: none"><h2 style="color:red">CONNECTION ERROR</h2></div>
+<div style="text-align: center;width: 800px;padding: 10px">
+    <img src="http://infinispan.org/images/infinispan_nav_brand.png">
+    <div>
+        <h2>127.0.0.1</h2>
+        <div id="STATUS_DISCONNECT" style="display: none"><h2 style="color:red">CONNECTION LOST</h2></div>
+        <div id="STATUS_STABLISHED" style="display: none"><h2 style="color:green">CONNECTION STABLISHED</h2></div>
+        <div id="STATUS_ERROR" style="display: none"><h2 style="color:red">CONNECTION ERROR</h2></div>
+    </div>
+    <div>
+        <h1 id="realTimeCounter"><span style="font-size:150%">0</span><br>
+            <small>Events / Sec</small>
+        </h1>
+    </div>
+    <div>
+        <canvas id="streamChart" width="320" height="80"></canvas>
+    </div>
 
-<div id="mygraph"></div>
-
+    <div style="border: 1px solid #222222" id="mainChart" align="center"></div>
+</div>
 <hr>
 <button onclick="refreshChart()">REFRESH</button>
 <button onclick="cleanMap()">CLEAN MAP</button>
@@ -193,6 +294,8 @@
 <script type="text/javascript">
     // Update chart
     refreshChart();
+
+    realTimeDataChart.streamTo(document.getElementById("streamChart"), 1000 /*delay*/);
 </script>
 </body>
 </html>
